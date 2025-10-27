@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: pesantren_db
+    restart: always
+    environment:
+      # PENTING: Mengatur ini secara eksplisit menjamin database dibuat oleh Postgres
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME} 
+    volumes:
+      - pesantren_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  api:
+    build:
+      context: ./backend # Lokasi Dockerfile
+      dockerfile: Dockerfile
+    container_name: pesantren_api
+    restart: always
+    environment:
+      # Pass semua variabel lingkungan dari dev.env ke container
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      SERVER_PORT: ${SERVER_PORT}
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+    volumes:
+      - ./backend:/app # Mount kode sumber untuk Hot Reload (development)
+    depends_on:
+      - db
+    env_file:
+      - ./dev.env # Memuat variabel dari root dev.env
+
+volumes:
+  pesantren_data:

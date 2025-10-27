@@ -1,0 +1,23 @@
+# Konfigurasi Hot Reload untuk AIR
+root = "."
+tmp_dir = "tmp"
+
+[build]
+# Perintah ini dijalankan sebelum kompilasi untuk memastikan go.sum sinkron dan membangun binary
+# -o ./tmp/api : Menentukan output binary bernama 'api' di folder 'tmp'
+# ./cmd/api    : Menentukan entry point (main package) dari aplikasi
+cmd = "go mod tidy && go build -o ./tmp/api ./cmd/api"
+# Nama binary yang dihasilkan dan akan dijalankan
+bin = "./tmp/api"
+delay = 500 # Milidetik penundaan setelah file berubah
+# Folder yang dikecualikan dari pengawasan dan kompilasi
+exclude_dir = ["assets", "web", "vendor"]
+include_ext = ["go", "tpl", "tmpl", "html", "toml"]
+
+[log]
+# Menunjukkan kapan file berubah
+time = true
+
+[watch]
+# Folder yang diawasi oleh air
+include_dir = ["cmd", "internal", "pkg"]

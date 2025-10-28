@@ -3,13 +3,14 @@ package db
 import (
 	"fmt"
 	"log"
-	"os"   // Tambahkan import os
-	"time" // Tambahkan import time
+	"os"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	"pesantren-monorepo/backend/internal/shared/config" // Asumsikan config.GlobalConfig ada
+	"pesantren-monorepo/backend/internal/shared/config"
+	"pesantren-monorepo/backend/pkg/model"
 )
 
 // InitDB menginisialisasi koneksi database menggunakan konfigurasi
@@ -18,14 +19,11 @@ func InitDB(cfg *config.Config) *gorm.DB {
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Jakarta",
 		cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort)
 
-	// Log DSN untuk Debugging
 	log.Printf("Attempting DB connection with DSN: %s", dsn)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		// PENTING: Gunakan log.Printf dan os.Exit(1) untuk lingkungan dev (air restart)
 		log.Printf("Gagal terhubung ke database Postgres. Error: %v", err)
-		// Keluarkan program untuk memicu restart (Hot Reload)
 		os.Exit(1)
 	}
 
@@ -35,14 +33,44 @@ func InitDB(cfg *config.Config) *gorm.DB {
 		os.Exit(1)
 	}
 
-	// Set konfigurasi koneksi
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetMaxOpenConns(100)
 	sqlDB.SetConnMaxLifetime(time.Hour)
 
 	log.Println("Koneksi Database berhasil.")
 
-	// db.AutoMigrate(&model.User{}) // Jika Anda punya model awal
+	// --- Migrasi & Seed Data ---
+	runMigrations(db)
 
 	return db
+}
+
+func runMigrations(db *gorm.DB) {
+	// Lakukan AutoMigrate untuk semua model
+	err := db.AutoMigrate(&model.GlobalSetting{})
+	if err != nil {
+		log.Fatalf("Gagal melakukan migrasi database: %v", err)
+	}
+
+	// Inisialisasi data pengaturan default (Seed Data)
+	seedSettings(db)
+	log.Println("Migrasi dan Seed Data selesai.")
+}
+
+// seedSettings memastikan pengaturan dasar ada di database
+func seedSettings(db *gorm.DB) {
+	defaultSettings := []model.GlobalSetting{
+		{Key: "INSTITUTION_NAME", Value: "Yayasan Pesantren Digital Indonesia"},
+	}
+
+	for _, setting := range defaultSettings {
+		// Cek apakah key sudah ada
+		var existingSetting model.GlobalSetting
+		result := db.Where("key = ?", setting.Key).First(&existingSetting)
+
+		if result.Error != nil && result.Error == gorm.ErrRecordNotFound {
+			// Jika belum ada, buat record baru
+			db.Create(&setting)
+		}
+	}
 }
